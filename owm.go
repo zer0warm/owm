@@ -22,16 +22,6 @@ const (
 	ENV_FILE = ".curwttr_env"
 )
 
-type CurrentWeather struct {
-	Weather []struct {
-		Main string `json:"main"`
-	} `json:"weather"`
-	Main struct {
-		Actual    float64 `json:"temp"`
-		FeelsLike float64 `json:"feels_like"`
-	} `json:"main"`
-}
-
 func main() {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -110,7 +100,15 @@ func owmGetCurrent(appid, lat, lon string) (desc string, temp, feel float64, err
 		logger.Fatal(response.Status)
 	}
 
-	var cw CurrentWeather
+	var cw struct {
+		Weather []struct {
+			Main string `json:"main"`
+		} `json:"weather"`
+		Main struct {
+			Actual    float64 `json:"temp"`
+			FeelsLike float64 `json:"feels_like"`
+		} `json:"main"`
+	}
 	if err := json.NewDecoder(response.Body).Decode(&cw); err != nil {
 		return "", 0, 0, err
 	}
