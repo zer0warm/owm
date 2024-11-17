@@ -104,10 +104,11 @@ func owmGetCurrent(appid, lat, lon string) (desc string, temp, feel float64, err
 	if err != nil {
 		return
 	}
+	defer response.Body.Close()
+
 	if response.StatusCode != http.StatusOK {
 		logger.Fatal(response.Status)
 	}
-	defer response.Body.Close()
 
 	var cw CurrentWeather
 	if err := json.NewDecoder(response.Body).Decode(&cw); err != nil {
