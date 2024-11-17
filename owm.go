@@ -22,6 +22,18 @@ const (
 	ENV_FILE = ".curwttr_env"
 )
 
+type appConfig struct {
+	appid string
+	lat   string
+	lon   string
+}
+
+type weatherData struct {
+	temp float64
+	feel float64
+	desc string
+}
+
 func main() {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -37,19 +49,19 @@ func main() {
 	defer logFile.Close()
 
 	logger := log.New(logFile, "owm", log.LstdFlags)
-	appid, lat, lon, err := readENV(home)
+	config, err := readENV(home)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	desc, temp, feel, err := owmGetCurrent(appid, lat, lon)
+	data, err := owmGetCurrent(config)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
 	weather := fmt.Sprintf(
-		"%s: %d°C %d°C", desc,
-		int(math.Round(temp)), int(math.Round(feel)))
+		"%s: %d°C %d°C", data.desc,
+		int(math.Round(data.temp)), int(math.Round(data.feel)))
 	err = os.WriteFile(
 		fmt.Sprintf("%s/%s", home, OUT_FILE),
 		[]byte(weather), 0600)
@@ -58,7 +70,7 @@ func main() {
 	}
 }
 
-func readENV(home string) (appid, lat, lon string, err error) {
+func readENV(home string) (config appConfig, err error) {
 	file, err := os.Open(fmt.Sprintf("%s/%s", home, ENV_FILE))
 	if err != nil {
 		return
@@ -68,24 +80,24 @@ func readENV(home string) (appid, lat, lon string, err error) {
 		kv := strings.Split(scanner.Text(), "=")
 		switch kv[0] {
 		case "appid":
-			appid = kv[1]
+			config.appid = kv[1]
 		case "lat":
-			lat = kv[1]
+			config.lat = kv[1]
 		case "lon":
-			lon = kv[1]
+			config.lon = kv[1]
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return "", "", "", err
+		return appConfig{}, err
 	}
 	return
 }
 
-func owmGetCurrent(appid, lat, lon string) (desc string, temp, feel float64, err error) {
+func owmGetCurrent(config appConfig) (data weatherData, err error) {
 	params := url.Values{}
-	params.Set("appid", appid)
-	params.Set("lat", lat)
-	params.Set("lon", lon)
+	params.Set("appid", config.appid)
+	params.Set("lat", config.lat)
+	params.Set("lon", config.lon)
 	params.Set("units", "metric")
 
 	baseURL := "https://api.openweathermap.org/data/2.5/weather"
@@ -110,11 +122,11 @@ func owmGetCurrent(appid, lat, lon string) (desc string, temp, feel float64, err
 		} `json:"main"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&cw); err != nil {
-		return "", 0, 0, err
+		return data, err
 	}
 
-	desc = cw.Weather[0].Main
-	temp = cw.Main.Actual
-	feel = cw.Main.FeelsLike
+	data.desc = cw.Weather[0].Main
+	data.temp = cw.Main.Actual
+	data.feel = cw.Main.FeelsLike
 	return
 }
